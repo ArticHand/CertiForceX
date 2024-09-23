@@ -1,58 +1,86 @@
-name: Build, Security Scan, and Tag
+name: Build, Code Scan, and Auto Tag C# Project
 
 on:
+  pull_request:
+    branches:
+      - main
+
   push:
     branches:
       - main
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
-    # Checkout the code from the repository
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    # Setup .NET Core SDK
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '7.x'  # Update this to the version you're using
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.x'
 
-    # Restore dependencies
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    # Build the project
-    - name: Build the project
-      run: dotnet build --configuration Release
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-    # Run tests (optional, include if you have tests)
-    - name: Run tests
-      run: dotnet test --no-build --verbosity normal
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      security-events: write
 
-    # Security scan using CodeQL
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
-      with:
-        languages: 'csharp'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: csharp
 
-    # Tag the build if successful
-    - name: Tag successful build
-      if: success()
-      run: |
-        GIT_TAG="version-success-$(date +'%Y%m%d%H%M%S')"
-        git tag $GIT_TAG
-        git push origin $GIT_TAG
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
 
-    # Tag the build if it fails
-    - name: Tag failed build
-      if: failure()
-      run: |
-        GIT_TAG="version-failed-$(date +'%Y%m%d%H%M%S')"
-        git tag $GIT_TAG
-        git push origin $GIT_TAG
+  tag:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write  # Ensure the workflow has permission to push tags
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch full history to ensure tags are available
+
+      - name: Set up Git for tag push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Bump Version and Create Tag
+        id: tag
+        run: |
+          git fetch --tags
+          latest_tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+
+          IFS='.' read -r -a parts <<< "${latest_tag//v/}"
+          major=${parts[0]}
+          minor=${parts[1]}
+          patch=${parts[2]}
+
+          patch=$((patch + 1))
+
+          new_tag="v$major.$minor.$patch"
+          echo "New tag will be: $new_tag"
+
+          git tag $new_tag
+          git push origin $new_tag
+
+      - name: Output New Tag
+        run: echo "New tag created: ${{ steps.tag.outputs.tag }}"
