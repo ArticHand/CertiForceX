@@ -1,86 +1,70 @@
-name: Build, Code Scan, and Auto Tag C# Project
-
-on:
-  pull_request:
-    branches:
-      - main
-
-  push:
-    branches:
-      - main
-
-jobs:
-  build:
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '7.x'
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-
-  codeql:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      security-events: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-        with:
-          languages: csharp
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
-
-  tag:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: write  # Ensure the workflow has permission to push tags
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Fetch full history to ensure tags are available
-
-      - name: Set up Git for tag push
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-      - name: Bump Version and Create Tag
-        id: tag
-        run: |
-          git fetch --tags
-          latest_tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
-
-          IFS='.' read -r -a parts <<< "${latest_tag//v/}"
-          major=${parts[0]}
-          minor=${parts[1]}
-          patch=${parts[2]}
-
-          patch=$((patch + 1))
-
-          new_tag="v$major.$minor.$patch"
-          echo "New tag will be: $new_tag"
-
-          git tag $new_tag
-          git push origin $new_tag
-
-      - name: Output New Tag
-        run: echo "New tag created: ${{ steps.tag.outputs.tag }}"
+---
+  name: Build, Code Scan, and Auto Tag C# Project
+  on:
+    pull_request:
+      branches:
+        - main
+    push:
+      branches:
+        - main
+  jobs:
+    build:
+      runs-on: windows-latest
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v3
+        - name: Setup .NET Core
+          uses: actions/setup-dotnet@v3
+          with:
+            dotnet-version: 7.x
+        - name: Restore dependencies
+          run: dotnet restore
+        - name: Build
+          run: dotnet build --configuration Release --no-restore
+    codeql:
+      runs-on: ubuntu-latest
+      permissions:
+        actions: write
+        security-events: write
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v3
+        - name: Initialize CodeQL
+          uses: github/codeql-action/init@v2
+          with:
+            languages: csharp
+        - name: Perform CodeQL Analysis
+          uses: github/codeql-action/analyze@v2
+    tag:
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/main'
+      permissions:
+        contents: write
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v3
+          with:
+            fetch-depth: 0
+        - name: Set up Git for tag push
+          run: |
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+        - name: Bump Version and Create Tag
+          id: tag
+          run: |
+            git fetch --tags
+            latest_tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+  
+            IFS='.' read -r -a parts <<< "${latest_tag//v/}"
+            major=${parts[0]}
+            minor=${parts[1]}
+            patch=${parts[2]}
+  
+            patch=$((patch + 1))
+  
+            new_tag="v$major.$minor.$patch"
+            echo "New tag will be: $new_tag"
+  
+            git tag $new_tag
+            git push origin $new_tag
+  
