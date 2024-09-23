@@ -1,0 +1,105 @@
+name: Build, Code Scan, and Auto Tag C# Project
+
+on:
+  # This triggers the workflow on pull requests to the main branch
+  pull_request:
+    branches:
+      - main
+
+  # This triggers the workflow when code is pushed to the main branch
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # Checkout the code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up .NET Core SDK
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.x' # Use the appropriate version of .NET for your project
+
+      # Restore dependencies
+      - name: Restore dependencies
+        run: dotnet restore
+
+      # Build the project
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+  # Code scanning job using GitHub CodeQL for security scanning
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write  # Allows the results of the scan to be uploaded to GitHub's Security tab
+
+    strategy:
+      matrix:
+        language: [ 'csharp' ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  # Auto-tagging and versioning based on Git tags
+  tag:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # Only run tagging on main branch
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+
+      # Set up git user for tag pushing
+      - name: Set up Git for tag push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      # Get latest tag, bump version, and create new tag
+      - name: Bump Version and Create Tag
+        id: tag
+        run: |
+          # Fetch all tags from the repo
+          git fetch --tags
+          
+          # Get latest tag
+          latest_tag=$(git describe --tags --abbrev=0)
+          
+          # Extract major, minor, patch version numbers from the latest tag
+          IFS='.' read -r -a parts <<< "${latest_tag//v/}"
+          major=${parts[0]}
+          minor=${parts[1]}
+          patch=${parts[2]}
+
+          # Increment the patch version
+          patch=$((patch + 1))
+
+          # Create new tag
+          new_tag="v$major.$minor.$patch"
+          echo "New tag will be: $new_tag"
+
+          # Push the new tag
+          git tag $new_tag
+          git push origin $new_tag
+
+      # Output the new tag
+      - name: Output New Tag
+        run: echo "New tag created: ${{ steps.tag.outputs.tag }}"
