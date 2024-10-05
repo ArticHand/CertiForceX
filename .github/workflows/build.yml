@@ -41,12 +41,13 @@ jobs:
           echo "Listing coverage directory contents:"
           ls coverage/
 
-      - name: Check if coverage report exists
+      - name: Check if coverage report exists (PowerShell)
         run: |
-          if [ ! -f coverage/coverage.cobertura.xml ]; then
-            echo "Coverage report not found!"
-            exit 1
-          fi
+          if (Test-Path "coverage/coverage.cobertura.xml") {
+            Write-Host "Coverage report exists."
+          } else {
+            Write-Error "Coverage report not found!"
+          }
 
       # Store the build outputs and coverage reports as artifacts for the next job
       - name: Upload build artifacts and coverage reports
