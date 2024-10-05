@@ -37,13 +37,13 @@ jobs:
 
       - name: Convert coverage report to XML
         run: |
-          reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage/ -reporttypes:Cobertura
+          reportgenerator -reports:**/TestResults/**/*.xml -targetdir:coverage/ -reporttypes:Cobertura
           echo "Listing coverage directory contents:"
           ls coverage/
 
       - name: Check if coverage report exists (PowerShell)
         run: |
-          if (Test-Path "coverage/coverage.cobertura.xml") {
+          if (Test-Path "coverage/Cobertura.xml") {
             Write-Host "Coverage report exists."
           } else {
             Write-Error "Coverage report not found!"
@@ -57,7 +57,7 @@ jobs:
           path: |
             **/*.dll
             **/*.pdb
-            coverage/**/*.xml
+            coverage/Cobertura.xml
 
   sonarcloud-analysis:
     runs-on: ubuntu-latest  # Use Linux runner for SonarCloud
@@ -85,7 +85,7 @@ jobs:
             -Dsonar.organization=artichand
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-            -Dsonar.cs.opencover.reportsPaths=coverage/coverage.cobertura.xml
+            -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
 
   tag:
     runs-on: ubuntu-latest
