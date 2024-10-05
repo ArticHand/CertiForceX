@@ -1,5 +1,4 @@
 name: Build, Test, Code Scan, and Auto Tag C# Project
-
 on:
   pull_request:
     branches:
@@ -8,14 +7,23 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write  # Add global permissions
+
 jobs:
-  # Job 1: Build and Test
-  build:
+  build-and-analyze:
     runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Initialize CodeQL before the build process to allow it to track the build
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: csharp
+          queries: security-and-quality
+
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v3
         with:
@@ -24,59 +32,32 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Build the project
+      # Build the project while CodeQL is monitoring the process
+      - name: Build
         run: dotnet build --configuration Release --no-restore
 
+      # Run unit tests after the build is successful
       - name: Run unit tests
         run: dotnet test --no-build --configuration Release
 
-  # Job 2: CodeQL Analysis
-  codeql:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      security-events: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 7.x
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build the project
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: csharp
-          build-command: dotnet build --configuration Release
-
+      # Perform CodeQL analysis after the build and tests are complete
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v2
 
-  # Job 3: Auto Tag on Push to Main
   tag:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
-      contents: write
+      contents: write  # Ensure write access to contents
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Needed to fetch all tags
-
+          fetch-depth: 0
       - name: Set up Git for tag push
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
       - name: Bump Version and Create Tag
         id: tag
         run: |
@@ -95,3 +76,4 @@ jobs:
 
           git tag $new_tag
           git push origin $new_tag
+  
