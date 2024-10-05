@@ -17,13 +17,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Initialize CodeQL before the build process to allow it to track the build
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-        with:
-          languages: csharp
-          queries: security-and-quality
-
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v3
         with:
@@ -32,17 +25,23 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      # Build the project while CodeQL is monitoring the process
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      # Run unit tests after the build is successful
       - name: Run unit tests
         run: dotnet test --no-build --configuration Release
 
-      # Perform CodeQL analysis after the build and tests are complete
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+      # SonarCloud Scan Configuration
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}  # Add your SonarCloud token to GitHub secrets
+        with:
+          args: >
+            -Dsonar.projectKey=ArticHand_CertiForce
+            -Dsonar.organization=artichand
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   tag:
     runs-on: ubuntu-latest
@@ -76,4 +75,3 @@ jobs:
 
           git tag $new_tag
           git push origin $new_tag
-  
