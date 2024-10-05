@@ -1,74 +1,77 @@
----
-  name: Build, Test, Code Scan, and Auto Tag C# Project
-  on:
-    pull_request:
-      branches:
-        - main
-    push:
-      branches:
-        - main
-  jobs:
-    build-and-analyze:
-      runs-on: windows-latest
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v3
+name: Build, Test, Code Scan, and Auto Tag C# Project
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
 
-        # Initialize CodeQL before the build process to allow it to track the build
-        - name: Initialize CodeQL
-          uses: github/codeql-action/init@v2
-          with:
-            languages: csharp
+permissions:
+  contents: write  # Add global permissions
 
-        - name: Setup .NET Core
-          uses: actions/setup-dotnet@v3
-          with:
-            dotnet-version: 7.x
+jobs:
+  build-and-analyze:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-        - name: Restore dependencies
-          run: dotnet restore
+      # Initialize CodeQL before the build process to allow it to track the build
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: csharp
 
-        # Build the project while CodeQL is monitoring the process
-        - name: Build
-          run: dotnet build --configuration Release --no-restore
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.x
 
-        # Run unit tests after the build is successful
-        - name: Run unit tests
-          run: dotnet test --no-build --configuration Release
+      - name: Restore dependencies
+        run: dotnet restore
 
-        # Perform CodeQL analysis after the build and tests are complete
-        - name: Perform CodeQL Analysis
-          uses: github/codeql-action/analyze@v2
+      # Build the project while CodeQL is monitoring the process
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-    tag:
-      runs-on: ubuntu-latest
-      if: github.ref == 'refs/heads/main'
-      permissions:
-        contents: write
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v3
-          with:
-            fetch-depth: 0
-        - name: Set up Git for tag push
-          run: |
-            git config user.name "github-actions"
-            git config user.email "github-actions@github.com"
-        - name: Bump Version and Create Tag
-          id: tag
-          run: |
-            git fetch --tags
-            latest_tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+      # Run unit tests after the build is successful
+      - name: Run unit tests
+        run: dotnet test --no-build --configuration Release
 
-            IFS='.' read -r -a parts <<< "${latest_tag//v/}"
-            major=${parts[0]}
-            minor=${parts[1]}
-            patch=${parts[2]}
+      # Perform CodeQL analysis after the build and tests are complete
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
 
-            patch=$((patch + 1))
+  tag:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write  # Ensure write access to contents
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Git for tag push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+      - name: Bump Version and Create Tag
+        id: tag
+        run: |
+          git fetch --tags
+          latest_tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
 
-            new_tag="v$major.$minor.$patch"
-            echo "New tag will be: $new_tag"
+          IFS='.' read -r -a parts <<< "${latest_tag//v/}"
+          major=${parts[0]}
+          minor=${parts[1]}
+          patch=${parts[2]}
 
-            git tag $new_tag
-            git push origin $new_tag
+          patch=$((patch + 1))
+
+          new_tag="v$major.$minor.$patch"
+          echo "New tag will be: $new_tag"
+
+          git tag $new_tag
+          git push origin $new_tag

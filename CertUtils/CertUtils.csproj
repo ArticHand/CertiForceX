@@ -3,7 +3,7 @@
 <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework> <!-- or your target framework -->
     <AssemblyName>CertiForce</AssemblyName>
-    <Version>0.0.4</Version> <!-- Update this for each new release -->
+    <Version>0.0.5</Version> <!-- Update this for each new release -->
     <Authors>Richard Tan</Authors>
     <Description>This is a library that will help you to authenticate to Salesforce (getting the salesforce access token, using server to server authentication, it provides more secure connection compared to username and password approach)</Description>
     <PackageId>CertiForce</PackageId> <!-- Usually same as AssemblyName -->
