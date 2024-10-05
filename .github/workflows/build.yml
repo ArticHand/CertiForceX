@@ -1,4 +1,5 @@
 name: Build, Test, Code Scan, and Auto Tag C# Project
+
 on:
   pull_request:
     branches:
@@ -6,23 +7,30 @@ on:
   push:
     branches:
       - main
+
 jobs:
+  # Job 1: Build and Test
   build:
     runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 7.x
+
       - name: Restore dependencies
         run: dotnet restore
-      - name: Build
+
+      - name: Build the project
         run: dotnet build --configuration Release --no-restore
+
       - name: Run unit tests
         run: dotnet test --no-build --configuration Release
 
+  # Job 2: CodeQL Analysis
   codeql:
     runs-on: ubuntu-latest
     permissions:
@@ -31,13 +39,28 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build the project
+        run: dotnet build --configuration Release --no-restore
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: csharp
+          build-command: dotnet build --configuration Release
+
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
+  # Job 3: Auto Tag on Push to Main
   tag:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -47,11 +70,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Needed to fetch all tags
+
       - name: Set up Git for tag push
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+
       - name: Bump Version and Create Tag
         id: tag
         run: |
