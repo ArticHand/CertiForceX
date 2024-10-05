@@ -11,7 +11,7 @@ permissions:
   contents: write  # Add global permissions
 
 jobs:
-  build-and-analyze:
+  build-and-test:
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -31,11 +31,32 @@ jobs:
       - name: Run unit tests
         run: dotnet test --no-build --configuration Release
 
-      # SonarCloud Scan Configuration
+      # Store the build outputs as artifacts for the next job
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            **/*.dll
+            **/*.pdb
+
+  sonarcloud-analysis:
+    runs-on: ubuntu-latest  # Use Linux runner for SonarCloud
+    needs: build-and-test  # Ensure this job waits for the build-and-test job to complete
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+
+      # Run SonarCloud scan
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}  # Add your SonarCloud token to GitHub secrets
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.projectKey=ArticHand_CertiForce
