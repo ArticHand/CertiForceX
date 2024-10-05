@@ -8,7 +8,7 @@
       branches:
         - main
   jobs:
-    build:
+    build-and-analyze:
       runs-on: windows-latest
       steps:
         - name: Checkout code
@@ -35,16 +35,6 @@
         # Run unit tests after the build is successful
         - name: Run unit tests
           run: dotnet test --no-build --configuration Release
-
-    codeql:
-      runs-on: ubuntu-latest
-      needs: build  # Ensure the build and test steps complete first
-      permissions:
-        actions: write
-        security-events: write
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v3
 
         # Perform CodeQL analysis after the build and tests are complete
         - name: Perform CodeQL Analysis
