@@ -28,8 +28,15 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Run unit tests
-        run: dotnet test --no-build --configuration Release
+      - name: Run unit tests with coverage
+        run: dotnet test --no-build --configuration Release --collect:"XPlat Code Coverage"
+
+      - name: Install report generator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Convert coverage report to XML
+        run: |
+          reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage/ -reporttypes:Cobertura
 
       # Store the build outputs as artifacts for the next job
       - name: Upload build artifacts
@@ -39,6 +46,7 @@ jobs:
           path: |
             **/*.dll
             **/*.pdb
+            coverage/**/*.xml
 
   sonarcloud-analysis:
     runs-on: ubuntu-latest  # Use Linux runner for SonarCloud
@@ -63,6 +71,7 @@ jobs:
             -Dsonar.organization=artichand
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.cs.opencover.reportsPaths=coverage/**/*.xml
 
   tag:
     runs-on: ubuntu-latest
