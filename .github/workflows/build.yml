@@ -6,49 +6,43 @@ on:
   push:
     branches:
       - main
-
-permissions:
-  contents: write  # Add global permissions
-
 jobs:
-  build-and-analyze:
+  build:
     runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      # Initialize CodeQL before the build process to allow it to track the build
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-        with:
-          languages: csharp
-          queries: security-and-quality
-
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 7.x
-
       - name: Restore dependencies
         run: dotnet restore
-
-      # Build the project while CodeQL is monitoring the process
       - name: Build
         run: dotnet build --configuration Release --no-restore
-
-      # Run unit tests after the build is successful
       - name: Run unit tests
         run: dotnet test --no-build --configuration Release
 
-      # Perform CodeQL analysis after the build and tests are complete
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
 
   tag:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
-      contents: write  # Ensure write access to contents
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -76,4 +70,3 @@ jobs:
 
           git tag $new_tag
           git push origin $new_tag
-  
