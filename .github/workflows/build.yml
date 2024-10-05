@@ -1,5 +1,5 @@
 ---
-  name: Build, Code Scan, and Auto Tag C# Project
+  name: Build, Test, Code Scan, and Auto Tag C# Project
   on:
     pull_request:
       branches:
@@ -21,6 +21,9 @@
           run: dotnet restore
         - name: Build
           run: dotnet build --configuration Release --no-restore
+        - name: Run unit tests
+          run: dotnet test --no-build --configuration Release
+
     codeql:
       runs-on: ubuntu-latest
       permissions:
@@ -35,6 +38,7 @@
             languages: csharp
         - name: Perform CodeQL Analysis
           uses: github/codeql-action/analyze@v2
+
     tag:
       runs-on: ubuntu-latest
       if: github.ref == 'refs/heads/main'
@@ -54,17 +58,17 @@
           run: |
             git fetch --tags
             latest_tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
-  
+
             IFS='.' read -r -a parts <<< "${latest_tag//v/}"
             major=${parts[0]}
             minor=${parts[1]}
             patch=${parts[2]}
-  
+
             patch=$((patch + 1))
-  
+
             new_tag="v$major.$minor.$patch"
             echo "New tag will be: $new_tag"
-  
+
             git tag $new_tag
             git push origin $new_tag
-  
+            
