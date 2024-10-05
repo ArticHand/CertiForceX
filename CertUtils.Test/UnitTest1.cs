@@ -7,25 +7,33 @@ namespace CertUtils.Test;
 public class UnitTest1
 {
     [Fact]
-    public void Test1()
+    public void GetPrivateKeyReturn_True()
     {
-        var clientId = "Salesforce ClientId";
-        var username = "salesforce username";
-        var authEndpoint = "authorization url";
-        var privateKeyUrl = "path to the private key";
-        var aud = "salesforce Audience";
-
+        var privateKeyUrl = "https://pastebin.com/raw/pdykvseW";
         // Dependency Injection
         IPrivateKeyProvider privateKeyProvider = new UrlPrivateKeyProvider(privateKeyUrl);
+        var pkey=privateKeyProvider.GetPrivateKeyAsync().Result;
+        Assert.NotEmpty(pkey);
+
+    }
+
+    [Fact]
+    public void GetJwtString_True()
+    {
+        var clientId = "yoursalesforceid";
+        var username = "richardla@abc.test";
+        var authEndpoint = "https://yoursalesforceurl";
+        var aud = "https://test.salesforce.com";
+        var privateKeyUrl = "https://pastebin.com/raw/pdykvseW";
+        // Dependency Injection
+
+        IPrivateKeyProvider privateKeyProvider = new UrlPrivateKeyProvider(privateKeyUrl);
+        var pkey=privateKeyProvider.GetPrivateKeyAsync().Result;
+
+        // Dependency Injection
         IJwtTokenGenerator jwtTokenGenerator = new JwtTokenGenerator(clientId, username,aud, authEndpoint);
-        ITokenRequester tokenRequester = new SalesforceTokenRequester(authEndpoint);
-
-        // High-level class that uses the abstractions
-        var tokenProvider = new SalesforceTokenProvider(privateKeyProvider, jwtTokenGenerator, tokenRequester);
-
-        string accessToken =  tokenProvider.GetAccessTokenAsync().Result;
-        Console.WriteLine($"Salesforce Access Token: {accessToken}");
-
+        var jwt=jwtTokenGenerator.GenerateJwtToken(pkey);
+        Assert.NotEmpty(jwt);
     }
 }
 
