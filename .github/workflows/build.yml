@@ -13,29 +13,40 @@
       steps:
         - name: Checkout code
           uses: actions/checkout@v3
+
+        # Initialize CodeQL before the build process to allow it to track the build
+        - name: Initialize CodeQL
+          uses: github/codeql-action/init@v2
+          with:
+            languages: csharp
+
         - name: Setup .NET Core
           uses: actions/setup-dotnet@v3
           with:
             dotnet-version: 7.x
+
         - name: Restore dependencies
           run: dotnet restore
+
+        # Build the project while CodeQL is monitoring the process
         - name: Build
           run: dotnet build --configuration Release --no-restore
+
+        # Run unit tests after the build is successful
         - name: Run unit tests
           run: dotnet test --no-build --configuration Release
 
     codeql:
       runs-on: ubuntu-latest
+      needs: build  # Ensure the build and test steps complete first
       permissions:
         actions: write
         security-events: write
       steps:
         - name: Checkout code
           uses: actions/checkout@v3
-        - name: Initialize CodeQL
-          uses: github/codeql-action/init@v2
-          with:
-            languages: csharp
+
+        # Perform CodeQL analysis after the build and tests are complete
         - name: Perform CodeQL Analysis
           uses: github/codeql-action/analyze@v2
 
@@ -71,4 +82,3 @@
 
             git tag $new_tag
             git push origin $new_tag
-            
