@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework> <!-- or your target framework -->
+    <TargetFramework>net8.0</TargetFramework> <!-- or your target framework -->
     <AssemblyName>CertiForce</AssemblyName>
     <Version>0.0.18</Version> <!-- Update this for each new release -->
     <Authors>Richard Tan</Authors>
@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
