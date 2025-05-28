@@ -7,13 +7,12 @@ using Xunit;
 
 namespace CertUtils.Test;
 
-public class UnitTest1 : IDisposable
+public class UnitTest1 : IAsyncLifetime
 {
-    private readonly RSA _rsa;
-    private readonly IPrivateKeyProvider _privateKeyProvider;
-    private readonly IJwtTokenGenerator _jwtTokenGenerator;
-    private readonly ITokenRequester _tokenRequester;
-    private readonly SalesforceTokenProvider _tokenProvider;
+    private IPrivateKeyProvider _privateKeyProvider;
+    private IJwtTokenGenerator _jwtTokenGenerator;
+    private ITokenRequester _tokenRequester;
+    private SalesforceTokenProvider _tokenProvider;
 
     private const string ClientId = "3MVG9GCMQoQ6rpzR0ZxpRnvsA_pWCNS2PpUUNcJ4ujokj80WCNo7EBGx9pgRbzhqmUAuQM6_kJsMzQCEmf_sJ";
     private const string Username = "richardla@vandewiele.test";
@@ -21,21 +20,28 @@ public class UnitTest1 : IDisposable
     private const string Aud = "https://test.salesforce.com";
     private const string PrivateKeyUrl = "https://gist.githubusercontent.com/ArticHand/e6a938c34e7102f2a9d72080242143e4/raw/a946ba4303a2813b0b4369bcba32dba81f1f41e2/gistfile1.txt";
 
-    public UnitTest1()
+    public async Task InitializeAsync()
     {
-        // Initialize RSA with a new key for each test
-        _rsa = RSA.Create(2048);
         _privateKeyProvider = new UrlPrivateKeyProvider(PrivateKeyUrl);
         _jwtTokenGenerator = new JwtTokenGenerator(ClientId, Username, Aud, AuthEndpoint);
         _tokenRequester = new SalesforceTokenRequester(AuthEndpoint);
         _tokenProvider = new SalesforceTokenProvider(_privateKeyProvider, _jwtTokenGenerator, _tokenRequester);
+        
+        // Warm up the provider
+        await _privateKeyProvider.GetPrivateKeyAsync();
+    }
+
+    public Task DisposeAsync()
+    {
+        // No explicit disposal needed as we're not creating any disposable resources
+        return Task.CompletedTask;
     }
 
     [Fact]
-    public void GetPrivateKeyReturn_True()
+    public async Task GetPrivateKeyReturn_True()
     {
         // Act
-        var pkey = _privateKeyProvider.GetPrivateKeyAsync().Result;
+        var pkey = await _privateKeyProvider.GetPrivateKeyAsync();
         
         // Assert
         Assert.NotNull(pkey);
@@ -43,10 +49,10 @@ public class UnitTest1 : IDisposable
     }
 
     [Fact]
-    public void GetJwtString_True()
+    public async Task GetJwtString_True()
     {
         // Arrange
-        var pkey = _privateKeyProvider.GetPrivateKeyAsync().Result;
+        var pkey = await _privateKeyProvider.GetPrivateKeyAsync();
 
         // Act
         var jwt = _jwtTokenGenerator.GenerateJwtToken(pkey);
@@ -64,10 +70,5 @@ public class UnitTest1 : IDisposable
         
         // Assert
         Assert.NotNull(sfToken);
-    }
-
-    public void Dispose()
-    {
-        _rsa?.Dispose();
     }
 }
