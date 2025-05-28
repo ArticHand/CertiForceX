@@ -6,27 +6,35 @@ on:
   pull_request:
     branches: [ main ]
 
-permissions:
-  contents: write
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  NUGET_XMLDOC_MODE: 'skip'
 
 jobs:
   build-and-test:
+    name: Build and Test
     runs-on: windows-latest
+    
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
+        token: ${{ secrets.CERTIFORCEX }}
 
-    - name: Setup .NET 8
+    - name: Setup .NET ${{ env.DOTNET_VERSION }}
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 8.x
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Restore dependencies
       run: dotnet restore
+      continue-on-error: false
 
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build --configuration Release --no-restore --no-incremental
+      continue-on-error: false
 
     - name: Run tests
       run: |
@@ -37,31 +45,45 @@ jobs:
           -- RunConfiguration.CollectionBehavior=DisableTestParallelization `
           -- RunConfiguration.MaxCpuCount=1 `
           -- RunConfiguration.Diagnostic=true
+      continue-on-error: false
 
   create-release:
+    name: Create Release
     needs: build-and-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: windows-latest
+    
+    permissions:
+      contents: write
+      packages: write
+      
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
+        token: ${{ secrets.CERTIFORCEX }}
 
-    - name: Setup .NET 8
+    - name: Setup .NET ${{ env.DOTNET_VERSION }}
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 8.x
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Set up Git for tag push
+    - name: Configure Git
       run: |
-        git config user.name "github-actions"
-        git config user.email "github-actions@github.com"
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git config --global pull.rebase false
 
     - name: Bump version and create tag
       id: tag_version
-      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.CERTIFORCEX }}
       run: |
+        # Fetch all tags
         git fetch --tags
+        
+        # Get latest tag or default to v0.0.0
         latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
         
         # Remove 'v' prefix if exists
@@ -70,7 +92,7 @@ jobs:
         # Split version into parts
         IFS='.' read -r -a version_parts <<< "$version"
         
-        # Ensure we have at least 3 parts (major.minor.patch)
+        # Ensure we have exactly 3 parts (major.minor.patch)
         while [ ${#version_parts[@]} -lt 3 ]; do
           version_parts+=(0)
         done
@@ -90,28 +112,73 @@ jobs:
         echo "new_tag=${new_tag}" >> $GITHUB_OUTPUT
         
         # Create and push the new tag
-        git tag -a ${new_tag} -m "Release ${new_tag}"
-        git push origin ${new_tag}
+        git tag -a ${new_tag} -m "Release ${new_tag} [skip ci]"
+        git remote set-url origin https://x-access-token:${{ secrets.CERTIFORCEX }}@github.com/${{ github.repository }}.git
+        git push origin ${new_tag} || echo "Tag push failed, continuing anyway"
 
     - name: Build release artifacts
       run: |
-        dotnet publish -c Release -o ./publish --no-restore --no-build
+        # Clean publish directory
+        if (Test-Path -Path "./publish") {
+          Remove-Item -Path "./publish" -Recurse -Force
+        }
         
-    - name: Create Release
+        # Publish the project
+        dotnet publish CertUtils/CertUtils.csproj `
+          -c Release `
+          -o ./publish `
+          --no-restore `
+          --no-build `
+          -p:Version=${{ env.NEW_TAG }}
+          
+        # List published files for debugging
+        Get-ChildItem -Path ./publish -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
+
+    - name: Create GitHub Release
       id: create_release
       uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.CERTIFORCEX }}
       with:
         tag_name: ${{ env.NEW_TAG }}
         name: Release ${{ env.NEW_TAG }}
         body: |
           ## Changes in this release
           - Automated release
-          - Built from ${{ github.sha }}
+          - Built from [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+          
+          ### Artifacts
+          - `CertUtils.dll` - Main library
+          - `*.pdb` - Debug symbols
+          - `*.json` - Configuration files
         draft: false
         prerelease: false
         files: |
-          **/publish/*.dll
-          **/publish/*.pdb
-          **/publish/*.json
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ./publish/CertUtils.dll
+          ./publish/*.pdb
+          ./publish/*.json
+
+    - name: Upload NuGet Package
+      if: success()
+      run: |
+        $version = ${{ env.NEW_TAG }}.TrimStart('v')
+        dotnet pack CertUtils/CertUtils.csproj `
+          -c Release `
+          -p:PackageVersion=$version `
+          -p:Version=$version `
+          --no-restore `
+          --no-build `
+          --output nupkg
+        
+        $nugetApiKey = ${{ secrets.NUGET_API_KEY }}
+        $package = Get-ChildItem -Path "./nupkg/*.nupkg" | Select-Object -First 1
+        
+        if ($package) {
+          Write-Host "Publishing package: $($package.Name)"
+          dotnet nuget push $package.FullName `
+            --skip-duplicate `
+            --api-key $nugetApiKey `
+            --source https://api.nuget.org/v3/index.json
+        } else {
+          Write-Warning "No NuGet package found to publish"
+        }
