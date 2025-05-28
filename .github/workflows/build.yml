@@ -30,12 +30,13 @@ jobs:
 
     - name: Run tests
       run: |
+        $env:DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = "1"
         dotnet test --no-build --verbosity normal --configuration Release `
-          --logger "console;verbosity=normal" `
+          --logger "console;verbosity=detailed" `
           --blame-hang-timeout 2min `
-          --filter "FullyQualifiedName~CertUtils.Test" `
           -- RunConfiguration.CollectionBehavior=DisableTestParallelization `
-          -- RunConfiguration.MaxCpuCount=1
+          -- RunConfiguration.MaxCpuCount=1 `
+          -- RunConfiguration.Diagnostic=true
 
   create-release:
     needs: build-and-test
@@ -58,6 +59,7 @@ jobs:
 
     - name: Bump version and create tag
       id: tag_version
+      shell: bash
       run: |
         git fetch --tags
         latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
