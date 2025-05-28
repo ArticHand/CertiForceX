@@ -23,27 +23,40 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.CERTIFORCEX }}
 
-    - name: Setup .NET SDK
+    - name: Setup .NET 8.0.x SDK
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '8.0.x'
 
-    - name: Install .NET 8.0.3xx SDK
-      run: |
-        # List installed SDKs
-        dotnet --list-sdks
-        
-        # Install specific .NET 8.0.3xx SDK
-        dotnet new globaljson --force --sdk-version 8.0.301
-        
-        # Verify SDK version
-        dotnet --version
-
     - name: Restore dependencies
       run: |
-        # Explicitly restore all projects
-        dotnet restore CertUtils/CertUtils.csproj
-        dotnet restore CertUtils.Test/CertUtils.Test.csproj
+        # List available SDKs
+        dotnet --list-sdks
+        
+        # Create global.json to pin SDK version
+        Write-Host "Creating global.json..."
+        @{
+          "sdk" = @{
+            "version" = "8.0.311"
+            "rollForward" = "latestFeature"
+          }
+        } | ConvertTo-Json | Set-Content -Path "global.json" -Force
+        
+        # Verify SDK version
+        Write-Host "Using .NET SDK version:"
+        dotnet --version
+        
+        # Restore all projects in the solution
+        Write-Host "Restoring solution..."
+        dotnet restore CertForce.sln --verbosity detailed
+        
+        # Verify restore
+        if (Test-Path "CertUtils/obj/project.assets.json") {
+            Write-Host "project.assets.json found in CertUtils"
+        } else {
+            Write-Error "project.assets.json not found in CertUtils"
+            exit 1
+        }
       continue-on-error: false
 
     - name: Build
@@ -78,21 +91,32 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.CERTIFORCEX }}
 
-    - name: Setup .NET SDK
+    - name: Setup .NET 8.0.x SDK
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '8.0.x'
 
-    - name: Install .NET 8.0.3xx SDK
+    - name: Configure .NET SDK
       run: |
-        # List installed SDKs
+        # List available SDKs
         dotnet --list-sdks
         
-        # Install specific .NET 8.0.3xx SDK
-        dotnet new globaljson --force --sdk-version 8.0.301
+        # Create global.json to pin SDK version
+        Write-Host "Creating global.json..."
+        @{
+          "sdk" = @{
+            "version" = "8.0.311"
+            "rollForward" = "latestFeature"
+          }
+        } | ConvertTo-Json | Set-Content -Path "global.json" -Force
         
         # Verify SDK version
+        Write-Host "Using .NET SDK version:"
         dotnet --version
+        
+        # Restore all projects in the solution
+        Write-Host "Restoring solution..."
+        dotnet restore CertForce.sln --verbosity detailed
 
     - name: Configure Git
       run: |
