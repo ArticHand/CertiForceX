@@ -17,7 +17,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup .NET
+    - name: Setup .NET 8
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 8.x
@@ -28,35 +28,29 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
 
-    - name: Run tests with retry and sequential execution
+    - name: Run tests with retry
       run: |
         # Run tests with xUnit's collection behavior set to CollectionBehavior.CollectionPerAssembly
         # This makes tests run sequentially within each test project
-        dotnet test --no-build --verbosity normal --configuration Release \
-          --logger "console;verbosity=normal" \
-          --blame-hang-timeout 2min \
-          --blame-hang-dump-type full \
-          -- RunConfiguration.CollectionBehavior=DisableTestParallelization \
-          -- RunConfiguration.MaxCpuCount=1
-          
-        # If the first run fails, retry once
-        if [ $? -ne 0 ]; then
-          echo "First test run failed, retrying..."
-          dotnet test --no-build --verbosity normal --configuration Release \
-            --logger "console;verbosity=detailed" \
-            -- RunConfiguration.CollectionBehavior=DisableTestParallelization \
-            -- RunConfiguration.MaxCpuCount=1 \
-            -- RunConfiguration.Retry=1
-        fi
+        dotnet test --no-build --verbosity normal --configuration Release `
+          --logger "console;verbosity=normal" `
+          --blame-hang-timeout 2min `
+          --blame-hang-dump-type full `
+          -- RunConfiguration.CollectionBehavior=DisableTestParallelization RunConfiguration.MaxCpuCount=1
 
   create-release:
     needs: build-and-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.x
 
     - name: Set up Git for tag push
       run: |
