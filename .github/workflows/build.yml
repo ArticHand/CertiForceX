@@ -79,43 +79,44 @@ jobs:
       id: tag_version
       env:
         GITHUB_TOKEN: ${{ secrets.CERTIFORCEX }}
-      shell: bash
       run: |
         # Fetch all tags
         git fetch --tags
         
         # Get latest tag or default to v0.0.0
-        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        $latestTag = git describe --tags --abbrev=0 2>$null
+        if (-not $?) { $latestTag = "v0.0.0" }
         
         # Remove 'v' prefix if exists
-        version=${latest_tag#v}
+        $version = $latestTag -replace '^v', ''
         
-        # Split version into parts using IFS and read into array
-        IFS='.' read -r -a version_parts <<< "$version"
+        # Split version into parts
+        $versionParts = $version -split '\.'
         
         # Ensure we have exactly 3 parts (major.minor.patch)
-        while [ ${#version_parts[@]} -lt 3 ]; do
-          version_parts+=(0)
-        done
+        while ($versionParts.Count -lt 3) {
+          $versionParts += "0"
+        }
         
         # Increment patch version
-        version_parts[2]=$((version_parts[2] + 1))
+        $versionParts[2] = [int]$versionParts[2] + 1
         
         # Construct new version
-        new_version="${version_parts[0]}.${version_parts[1]}.${version_parts[2]}"
-        new_tag="v${new_version}"
+        $newVersion = $versionParts -join '.'
+        $newTag = "v$newVersion"
         
-        echo "Previous tag: ${latest_tag}"
-        echo "New tag: ${new_tag}"
+        Write-Host "Previous tag: $latestTag"
+        Write-Host "New tag: $newTag"
         
         # Set outputs for subsequent steps
-        echo "NEW_TAG=${new_tag}" >> $GITHUB_ENV
-        echo "new_tag=${new_tag}" >> $GITHUB_OUTPUT
+        Write-Output "NEW_TAG=$newTag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        Write-Output "new_tag=$newTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
         
         # Create and push the new tag
-        git tag -a ${new_tag} -m "Release ${new_tag} [skip ci]"
-        git remote set-url origin https://x-access-token:${{ secrets.CERTIFORCEX }}@github.com/${{ github.repository }}.git
-        git push origin ${new_tag} || echo "Tag push failed, continuing anyway"
+        git tag -a $newTag -m "Release $newTag [skip ci]"
+        $remoteUrl = "https://x-access-token:$($env:GITHUB_TOKEN)@github.com/$($env:GITHUB_REPOSITORY).git"
+        git remote set-url origin $remoteUrl
+        git push origin $newTag || Write-Host "Tag push failed, continuing anyway"
 
     - name: Build release artifacts
       run: |
