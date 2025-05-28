@@ -66,11 +66,21 @@ jobs:
         
         # Remove 'v' prefix if exists
         version=${latest_tag#v}
-        IFS='.' read -r major minor patch <<< "${version}.0.0.0.0"
+        
+        # Split version into parts
+        IFS='.' read -r -a version_parts <<< "$version"
+        
+        # Ensure we have at least 3 parts (major.minor.patch)
+        while [ ${#version_parts[@]} -lt 3 ]; do
+          version_parts+=(0)
+        done
         
         # Increment patch version
-        new_patch=$((patch + 1))
-        new_tag="v${major}.${minor}.${new_patch}"
+        version_parts[2]=$((version_parts[2] + 1))
+        
+        # Construct new version
+        new_version="${version_parts[0]}.${version_parts[1]}.${version_parts[2]}"
+        new_tag="v${new_version}"
         
         echo "Previous tag: ${latest_tag}"
         echo "New tag: ${new_tag}"
