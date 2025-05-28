@@ -79,6 +79,7 @@ jobs:
       id: tag_version
       env:
         GITHUB_TOKEN: ${{ secrets.CERTIFORCEX }}
+      shell: bash
       run: |
         # Fetch all tags
         git fetch --tags
@@ -89,7 +90,7 @@ jobs:
         # Remove 'v' prefix if exists
         version=${latest_tag#v}
         
-        # Split version into parts
+        # Split version into parts using IFS and read into array
         IFS='.' read -r -a version_parts <<< "$version"
         
         # Ensure we have exactly 3 parts (major.minor.patch)
