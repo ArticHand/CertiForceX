@@ -23,13 +23,27 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.CERTIFORCEX }}
 
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET SDK
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        dotnet-version: '8.0.x'
+
+    - name: Install .NET 8.0.3xx SDK
+      run: |
+        # List installed SDKs
+        dotnet --list-sdks
+        
+        # Install specific .NET 8.0.3xx SDK
+        dotnet new globaljson --force --sdk-version 8.0.301
+        
+        # Verify SDK version
+        dotnet --version
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: |
+        # Explicitly restore all projects
+        dotnet restore CertUtils/CertUtils.csproj
+        dotnet restore CertUtils.Test/CertUtils.Test.csproj
       continue-on-error: false
 
     - name: Build
@@ -64,10 +78,21 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.CERTIFORCEX }}
 
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET SDK
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        dotnet-version: '8.0.x'
+
+    - name: Install .NET 8.0.3xx SDK
+      run: |
+        # List installed SDKs
+        dotnet --list-sdks
+        
+        # Install specific .NET 8.0.3xx SDK
+        dotnet new globaljson --force --sdk-version 8.0.301
+        
+        # Verify SDK version
+        dotnet --version
 
     - name: Configure Git
       run: |
