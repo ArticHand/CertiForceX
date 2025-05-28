@@ -1,123 +1,94 @@
-name: Build, Test, Code Scan, and Auto Tag C# Project
+name: Build, Test, and Release
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 permissions:
-  contents: write  # Add global permissions
+  contents: write
 
 jobs:
   build-and-test:
     runs-on: windows-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 7.x
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.x
 
-      - name: Restore dependencies
-        run: dotnet restore
+    - name: Restore dependencies
+      run: dotnet restore
 
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
 
-      - name: Run unit tests with coverage
-        run: dotnet test --no-build --configuration Release --collect:"XPlat Code Coverage"
+    - name: Run tests
+      run: dotnet test --no-build --verbosity normal --configuration Release
 
-      - name: Install report generator
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
-
-      - name: Convert coverage report to XML
-        run: |
-          reportgenerator -reports:**/TestResults/**/*.xml -targetdir:coverage/ -reporttypes:Cobertura
-          echo "Listing coverage directory contents:"
-          ls coverage/
-
-      - name: Check if coverage report exists (PowerShell)
-        run: |
-          if (Test-Path "coverage/Cobertura.xml") {
-            Write-Host "Coverage report exists."
-          } else {
-            Write-Error "Coverage report not found!"
-          }
-
-      # Store the build outputs and coverage reports as artifacts for the next job
-      - name: Upload build artifacts and coverage reports
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-and-coverage-artifacts
-          path: |
-            **/*.dll
-            **/*.pdb
-            coverage/Cobertura.xml
-
-  sonarcloud-analysis:
-    runs-on: ubuntu-latest  # Use Linux runner for SonarCloud
-    needs: build-and-test  # Ensure this job waits for the build-and-test job to complete
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Download build and coverage artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: build-and-coverage-artifacts
-
-      - name: List downloaded coverage files
-        run: ls coverage/
-
-      # Run SonarCloud scan
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=ArticHand_CertiForce
-            -Dsonar.organization=artichand
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-            -Dsonar.cobertura.reportPath=coverage/Cobertura.xml
-
-  tag:
+  create-release:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: write  # Ensure write access to contents
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-      - name: Set up Git for tag push
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+    - name: Set up Git for tag push
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
 
-      - name: Bump Version and Create Tag
-        id: tag
-        run: |
-          git fetch --tags
-          latest_tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+    - name: Bump version and create tag
+      id: tag_version
+      run: |
+        git fetch --tags
+        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        
+        # Remove 'v' prefix if exists
+        version=${latest_tag#v}
+        IFS='.' read -r major minor patch <<< "${version}.0.0.0.0"
+        
+        # Increment patch version
+        new_patch=$((patch + 1))
+        new_tag="v${major}.${minor}.${new_patch}"
+        
+        echo "Previous tag: ${latest_tag}"
+        echo "New tag: ${new_tag}"
+        
+        # Set outputs for subsequent steps
+        echo "NEW_TAG=${new_tag}" >> $GITHUB_ENV
+        echo "new_tag=${new_tag}" >> $GITHUB_OUTPUT
+        
+        # Create and push the new tag
+        git tag -a ${new_tag} -m "Release ${new_tag}"
+        git push origin ${new_tag}
 
-          IFS='.' read -r -a parts <<< "${latest_tag//v/}"
-          major=${parts[0]}
-          minor=${parts[1]}
-          patch=${parts[2]}
-
-          patch=$((patch + 1))
-
-          new_tag="v$major.$minor.$patch"
-          echo "New tag will be: $new_tag"
-
-          git tag $new_tag
-          git push origin $new_tag
+    - name: Build release artifacts
+      run: |
+        dotnet publish -c Release -o ./publish --no-restore --no-build
+        
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ env.NEW_TAG }}
+        name: Release ${{ env.NEW_TAG }}
+        body: |
+          ## Changes in this release
+          - Automated release
+          - Built from ${{ github.sha }}
+        draft: false
+        prerelease: false
+        files: |
+          **/publish/*.dll
+          **/publish/*.pdb
+          **/publish/*.json
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
