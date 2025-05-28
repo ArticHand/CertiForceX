@@ -28,7 +28,7 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
 
-    - name: Run tests with retry
+    - name: Run tests with isolation
       run: |
         # Run tests with xUnit's collection behavior set to CollectionBehavior.CollectionPerAssembly
         # This makes tests run sequentially within each test project
@@ -36,7 +36,9 @@ jobs:
           --logger "console;verbosity=normal" `
           --blame-hang-timeout 2min `
           --blame-hang-dump-type full `
-          -- RunConfiguration.CollectionBehavior=DisableTestParallelization RunConfiguration.MaxCpuCount=1
+          -- RunConfiguration.CollectionBehavior=DisableTestParallelization `
+          -- RunConfiguration.MaxCpuCount=1 `
+          -- RunConfiguration.DisableParallelization=true
 
   create-release:
     needs: build-and-test
