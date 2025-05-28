@@ -178,13 +178,19 @@ jobs:
         # First ensure we have a clean build
         dotnet build CertUtils/CertUtils.csproj -c Release --no-restore
         
-        # Then publish with the version
+        # Remove 'v' prefix from version for NuGet
+        $version = "${{ env.NEW_TAG }}".TrimStart('v')
+        
+        # Publish with the cleaned version
         dotnet publish CertUtils/CertUtils.csproj `
           -c Release `
           -o ./publish `
           --no-restore `
-          -p:Version=${{ env.NEW_TAG }} `
-          -p:GenerateDocumentationFile=false
+          -p:Version=$version `
+          -p:GenerateDocumentationFile=false `
+          -p:AssemblyVersion=$version `
+          -p:FileVersion=$version `
+          -p:PackageVersion=$version
           
         # List published files for debugging
         Get-ChildItem -Path ./publish -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
