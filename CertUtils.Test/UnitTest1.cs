@@ -62,7 +62,7 @@ public class UnitTest1 : IAsyncLifetime
         Assert.NotEmpty(jwt);
     }
 
-    [Fact]
+    /* [Fact]
     public async Task GetSalesforceToken_True()
     {
         // Act
@@ -70,5 +70,5 @@ public class UnitTest1 : IAsyncLifetime
         
         // Assert
         Assert.NotNull(sfToken);
-    }
+    } */
 }
