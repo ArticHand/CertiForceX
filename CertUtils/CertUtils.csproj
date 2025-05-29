@@ -1,18 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-<PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework> <!-- or your target framework -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>CertiForce</AssemblyName>
-    <Version>0.0.18</Version> <!-- Update this for each new release -->
-    <Authors>Richard Tan</Authors>
+    <Version>0.0.18</Version>
+    <Authors>Richard Tan, Richard Lawidjaja</Authors>
     <Description>This is a library that will help you to authenticate to Salesforce (getting the salesforce access token, using server to server authentication, it provides more secure connection compared to username and password approach)</Description>
-    <PackageId>CertiForce</PackageId> <!-- Usually same as AssemblyName -->
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression> <!-- Or specify the license -->
-    <PackageProjectUrl>https://github.com/ArticHand/CertiForce</PackageProjectUrl> <!-- URL to your repo -->
-    <PackageTags>salesforce;authentication,ssl,privatekey</PackageTags> <!-- Optional: Add tags for NuGet search -->
+    <PackageId>CertiForce</PackageId>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/ArticHand/CertiForce</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>salesforce;authentication;ssl;privatekey</PackageTags>
     <RepositoryUrl>https://github.com/ArticHand/CertiForce</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Authors>Richard Lawidjaja</Authors> <!-- Optional: Include author name -->
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -35,5 +36,9 @@
     <Folder Include="Cert\" />
     <Folder Include="Salesforce\" />
     <Folder Include="Token\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
