@@ -178,8 +178,9 @@ jobs:
         # First ensure we have a clean build
         dotnet build CertUtils/CertUtils.csproj -c Release --no-restore
         
-        # Ensure version is clean (remove 'v' prefix and any other non-numeric characters at start)
-        $version = "${{ env.NEW_TAG }}" -replace '^[^0-9]*', ''
+        # Get the version from the environment variable and clean it
+        $version = "${{ env.NEW_TAG }}"
+        $version = $version -replace '^v', ''  # Remove 'v' prefix if present
         
         # Publish with the cleaned version
         dotnet publish CertUtils/CertUtils.csproj `
