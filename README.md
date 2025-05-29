@@ -14,12 +14,12 @@ A .NET library for secure Salesforce authentication using JWT Bearer Token Flow 
 
 ### NuGet Package Manager
 ```bash
-Install-Package CertiForce -Version 0.0.18
+Install-Package CertiForce
 ```
 
 ### .NET CLI
 ```bash
-dotnet add package CertiForce --version 0.0.18
+dotnet add package CertiForce
 ```
 
 ## Prerequisites
