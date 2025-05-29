@@ -178,8 +178,8 @@ jobs:
         # First ensure we have a clean build
         dotnet build CertUtils/CertUtils.csproj -c Release --no-restore
         
-        # Remove 'v' prefix from version for NuGet
-        $version = "${{ env.NEW_TAG }}".TrimStart('v')
+        # Ensure version is clean (remove 'v' prefix and any other non-numeric characters at start)
+        $version = "${{ env.NEW_TAG }}" -replace '^[^0-9]*', ''
         
         # Publish with the cleaned version
         dotnet publish CertUtils/CertUtils.csproj `
