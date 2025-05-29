@@ -223,7 +223,15 @@ jobs:
     - name: Upload NuGet Package
       if: success()
       run: |
-        $version = ${{ env.NEW_TAG }}.TrimStart('v')
+        # Get version from environment variable and clean it
+        $version = "${{ env.NEW_TAG }}" -replace '^v', ''
+        
+        # Create nupkg directory if it doesn't exist
+        if (-not (Test-Path -Path "./nupkg")) {
+          New-Item -ItemType Directory -Path "./nupkg" | Out-Null
+        }
+        
+        # Pack the project
         dotnet pack CertUtils/CertUtils.csproj `
           -c Release `
           -p:PackageVersion=$version `
@@ -232,15 +240,16 @@ jobs:
           --no-build `
           --output nupkg
         
-        $nugetApiKey = ${{ secrets.NUGET_API_KEY }}
+        # Find and publish the package
         $package = Get-ChildItem -Path "./nupkg/*.nupkg" | Select-Object -First 1
         
         if ($package) {
           Write-Host "Publishing package: $($package.Name)"
           dotnet nuget push $package.FullName `
             --skip-duplicate `
-            --api-key $nugetApiKey `
+            --api-key ${{ secrets.NUGET_API_KEY }} `
             --source https://api.nuget.org/v3/index.json
         } else {
-          Write-Warning "No NuGet package found to publish"
+          Write-Error "No NuGet package found to publish"
+          exit 1
         }
